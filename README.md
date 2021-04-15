@@ -1,6 +1,8 @@
 # BLE_Peripheral
 create BLE peripheral using BlueZ, Dbus and python3 on Linux
 
+usage: python3 app.py
+
 This repo is remodified from
 [GitHub: PunchThrough / espresso-ble ](https://github.com/PunchThrough/espresso-ble)
 
