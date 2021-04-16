@@ -9,7 +9,7 @@ python3 app.py
 ### Demo2 
 (require MPU6050 sensor)
 
-sudo apt-get install python3-smbus
+sudo apt-get install -y python3-dbus python3-smbus
 
 python3 motionSensorApp.py 
 
