@@ -13,10 +13,10 @@ sudo apt-get install -y python3-dbus python3-smbus
 
 python3 motionSensorApp.py 
 
-## bluetooth pairing request on iPhone
+## stop bluetooth pairing request on iPhone
 solution, stop Bluez Battery plugin from loading at boot.
 
-modify Bluez service at /lib/systemd/system/bluetooth.service
+modify Bluez service at /lib/systemd/system/bluetooth.service, then reboot system.
 
 `ExecStart=/usr/lib/bluetooth/bluetoothd `**`-P battery`**
 
