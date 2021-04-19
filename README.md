@@ -17,7 +17,9 @@ python3 motionSensorApp.py
 solution, stop Bluez Battery plugin from loading at boot.
 
 modify Bluez service at /lib/systemd/system/bluetooth.service
+
 `ExecStart=/usr/lib/bluetooth/bluetoothd `**`-P battery`**
+
 [source](https://stackoverflow.com/a/66807717)
 
 # credit
