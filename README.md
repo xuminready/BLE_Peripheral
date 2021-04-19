@@ -13,6 +13,13 @@ sudo apt-get install -y python3-dbus python3-smbus
 
 python3 motionSensorApp.py 
 
+## bluetooth pairing request on iPhone
+solution, stop Bluez Battery plugin from loading at boot.
+
+modify Bluez service at /lib/systemd/system/bluetooth.service
+`ExecStart=/usr/lib/bluetooth/bluetoothd `**`-P battery`**
+[source](https://stackoverflow.com/a/66807717)
+
 # credit
 BLE code is modified from
 [GitHub: PunchThrough / espresso-ble ](https://github.com/PunchThrough/espresso-ble)
