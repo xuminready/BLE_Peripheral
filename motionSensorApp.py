@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import json
+import math
 
 import dbus
 import dbus.exceptions
@@ -18,7 +18,6 @@ from ble import (
     Service,
     Application,
     find_adapter,
-    Descriptor,
     GATT_CHRC_IFACE,
 )
 
@@ -32,8 +31,6 @@ from mpu6050 import (
     GYRO_YOUT_H,
     GYRO_ZOUT_H,
 )
-
-import array
 
 MainLoop = None
 try:
@@ -60,25 +57,33 @@ def readSensorData():
     gyro_z = read_raw_data(GYRO_ZOUT_H)
 
     # Full scale range +/- 250 degree/C as per sensitivity scale factor
-    Ax = acc_x / 16384.0
-    Ay = acc_y / 16384.0
-    Az = acc_z / 16384.0
+    Ax = acc_x / 16384.0 * 9.8
+    Ay = acc_y / 16384.0 * 9.8
+    Az = acc_z / 16384.0 * 9.8
 
     Gx = gyro_x / 131.0
     Gy = gyro_y / 131.0
     Gz = gyro_z / 131.0
 
-    # a Python object (dict):
-    x = {
-        "Gx": round(Gx, 3),
-        "Gy": round(Gy, 3),
-        "Gz": round(Gz, 3),
-        "Ax": round(Ax, 3),
-        "Ay": round(Ay, 3),
-        "Az": round(Az, 3),
-    }
-    # convert into JSON:
-    return json.dumps(x)
+    return dbus.Array([dbus.Byte(b) for b in (
+            math.floor(Ax).to_bytes(4, 'little', signed=True) + math.floor((Ax % 1) * 1000000).to_bytes(4, 'little',
+                                                                                                        signed=True)
+            + math.floor(Ay).to_bytes(4, 'little', signed=True) + math.floor((Ay % 1) * 1000000).to_bytes(4,
+                                                                                                          'little',
+                                                                                                          signed=True)
+            + math.floor(Az).to_bytes(4, 'little', signed=True) + math.floor((Az % 1) * 1000000).to_bytes(4,
+                                                                                                          'little',
+                                                                                                          signed=True)
+            + math.floor(Gx).to_bytes(4, 'little', signed=True) + math.floor((Gx % 1) * 1000000).to_bytes(4,
+                                                                                                          'little',
+                                                                                                          signed=True)
+            + math.floor(Gy).to_bytes(4, 'little', signed=True) + math.floor((Gy % 1) * 1000000).to_bytes(4,
+                                                                                                          'little',
+                                                                                                          signed=True)
+            + math.floor(Gz).to_bytes(4, 'little', signed=True) + math.floor((Gz % 1) * 1000000).to_bytes(4,
+                                                                                                          'little',
+                                                                                                          signed=True))],
+                      'y')
 
 
 def str_to_dbusarray(word):
@@ -119,15 +124,30 @@ class BLEService(Service):
 
     """
 
-    service_UUID = "12634d89-d598-4874-8e86-7d042ee07ba7"
+    service_UUID = "42673824-33e5-4aeb-ae5c-38dc66250000"
 
     def __init__(self, bus, index):
         Service.__init__(self, bus, index, self.service_UUID, True)
-        self.add_characteristic(DemoCharacteristic(bus, 0, self))
+        self.add_characteristic(NameCharacteristic(bus, 0, self))
+        self.add_characteristic(DemoCharacteristic(bus, 1, self))
+
+
+class NameCharacteristic(Characteristic):
+    uuid = "42673824-33e5-4aeb-ae5c-38dc66250001"
+    description = b"service name"
+
+    def __init__(self, bus, index, service):
+        Characteristic.__init__(
+            self, bus, index, self.uuid, ["read"], service,
+        )
+
+    def ReadValue(self, options):
+        value = bytearray('MPU6050', encoding="utf8")
+        return value
 
 
 class DemoCharacteristic(Characteristic):
-    uuid = "4116f8d2-9f66-4f58-a53d-fc7440e7c14e"
+    uuid = "42673824-33e5-4aeb-ae5c-38dc66250002"
     description = b"Motion sensor data"
 
     def __init__(self, bus, index, service):
@@ -137,20 +157,12 @@ class DemoCharacteristic(Characteristic):
         self.notifying = False
 
         self.count = 0
-        self.add_descriptor(CharacteristicUserDescriptionDescriptor(bus, 1, self))
 
     def ReadValue(self, options):
-        sensor_data_str = readSensorData()
-        print('Read vale: ' + sensor_data_str)
-        value = bytearray(sensor_data_str, encoding="utf8")
-        return value
+        return readSensorData()
 
     def NotifyTimer_cb(self):
-        sensor_data_str = readSensorData()
-        value = str_to_dbusarray(sensor_data_str)
-        self.count += 1
-        print('Notify value: ' + sensor_data_str)
-        self.PropertiesChanged(GATT_CHRC_IFACE, {'Value': value}, [])
+        self.PropertiesChanged(GATT_CHRC_IFACE, {'Value': readSensorData()}, [])
         return self.notifying
 
     def StartNotifyTimer(self):
@@ -196,29 +208,6 @@ def register_ad_cb():
 def register_ad_error_cb(error):
     print("Failed to register advertisement: " + str(error))
     mainloop.quit()
-
-
-class CharacteristicUserDescriptionDescriptor(Descriptor):
-    """
-    Writable CUD descriptor.
-    """
-
-    CUD_UUID = "2901"
-
-    def __init__(
-            self, bus, index, characteristic,
-    ):
-        self.value = array.array("B", characteristic.description)
-        self.value = self.value.tolist()
-        Descriptor.__init__(self, bus, index, self.CUD_UUID, ["read"], characteristic)
-
-    def ReadValue(self, options):
-        return self.value
-
-    def WriteValue(self, value, options):
-        if not self.writable:
-            raise NotPermittedException()
-        self.value = value
 
 
 def register_app_cb():
@@ -287,4 +276,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
